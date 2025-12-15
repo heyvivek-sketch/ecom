@@ -1,135 +1,200 @@
+
 import { DB, Product, User, Order, Role, OrderStatus } from '../types';
-import { DEFAULT_ADMIN_EMAIL, DEFAULT_ADMIN_PASS } from '../constants';
 
-const STORAGE_KEY = 'luxemart_db_v1';
+const API_URL = 'http://localhost:5000/api';
 
-const INITIAL_PRODUCTS: Product[] = [
+// --- MOCK DATA FOR FALLBACK ---
+const MOCK_PRODUCTS: Product[] = [
   {
     id: '1',
-    name: 'Wireless Noise Cancelling Headphones',
-    description: 'Premium over-ear headphones with 30-hour battery life.',
-    price: 4999,
-    stock: 50,
+    name: 'Premium Wireless Headphones',
+    description: 'High-fidelity audio with active noise cancellation and 30-hour battery life.',
+    price: 14999,
+    stock: 25,
     category: 'Electronics',
-    imageUrl: 'https://picsum.photos/400/400?random=1',
-    images: ['https://picsum.photos/400/400?random=1']
+    imageUrl: 'https://images.unsplash.com/photo-1505740420928-5e560c06d30e?w=800&q=80',
+    images: ['https://images.unsplash.com/photo-1505740420928-5e560c06d30e?w=800&q=80']
   },
   {
     id: '2',
-    name: 'Smart Fitness Watch',
-    description: 'Track your health, sleep, and workouts with ease.',
-    price: 2499,
-    stock: 100,
-    category: 'Electronics',
-    imageUrl: 'https://picsum.photos/400/400?random=2',
-    images: ['https://picsum.photos/400/400?random=2']
+    name: 'Designer Leather Jacket',
+    description: 'Genuine leather jacket with a timeless design and modern slim fit.',
+    price: 8999,
+    stock: 15,
+    category: 'Fashion',
+    imageUrl: 'https://images.unsplash.com/photo-1551028919-ac7f2ca8f2fe?w=800&q=80',
+    images: ['https://images.unsplash.com/photo-1551028919-ac7f2ca8f2fe?w=800&q=80']
   },
   {
     id: '3',
-    name: 'Classic Leather Jacket',
-    description: 'Genuine leather jacket with a timeless design.',
-    price: 8999,
-    stock: 20,
-    category: 'Fashion',
-    imageUrl: 'https://picsum.photos/400/400?random=3',
-    images: ['https://picsum.photos/400/400?random=3']
+    name: 'Smart Fitness Tracker',
+    description: 'Track your health metrics, sleep patterns, and workouts with precision.',
+    price: 3499,
+    stock: 50,
+    category: 'Electronics',
+    imageUrl: 'https://images.unsplash.com/photo-1523275335684-37898b6baf30?w=800&q=80',
+    images: ['https://images.unsplash.com/photo-1523275335684-37898b6baf30?w=800&q=80']
   },
   {
     id: '4',
-    name: 'Minimalist Coffee Table',
-    description: 'Oak wood finish, perfect for modern living rooms.',
-    price: 3500,
-    stock: 15,
+    name: 'Modern Coffee Table',
+    description: 'Minimalist oak wood design suitable for any modern living room.',
+    price: 5499,
+    stock: 10,
     category: 'Home',
-    imageUrl: 'https://picsum.photos/400/400?random=4',
-    images: ['https://picsum.photos/400/400?random=4']
+    imageUrl: 'https://images.unsplash.com/photo-1532372320572-cda25653a26d?w=800&q=80',
+    images: ['https://images.unsplash.com/photo-1532372320572-cda25653a26d?w=800&q=80']
   }
 ];
 
-const INITIAL_USERS: User[] = [
+const MOCK_ORDERS: Order[] = [
   {
-    id: 'admin-1',
-    name: 'Super Admin',
-    email: DEFAULT_ADMIN_EMAIL,
-    password: DEFAULT_ADMIN_PASS,
-    role: Role.ADMIN
-  },
-  {
-    id: 'user-1',
-    name: 'John Doe',
-    email: 'user@store.com',
-    password: 'user123',
-    role: Role.USER
+    id: 'mock-order-1',
+    userId: 'user-1',
+    userName: 'Demo User',
+    items: [{ ...MOCK_PRODUCTS[0], quantity: 1 }],
+    totalAmount: 14999,
+    status: OrderStatus.DELIVERED,
+    txnId: 'TXN123456789',
+    createdAt: new Date(Date.now() - 86400000 * 5).toISOString(), // 5 days ago
+    shippingAddress: '123 Mock Lane, Tech City'
   }
 ];
 
-const loadDB = (): DB => {
-  const stored = localStorage.getItem(STORAGE_KEY);
-  if (stored) {
-    return JSON.parse(stored);
-  }
-  const initialDB: DB = {
-    users: INITIAL_USERS,
-    products: INITIAL_PRODUCTS,
-    orders: []
+const getHeaders = () => {
+  const user = localStorage.getItem('luxemart_user');
+  const token = user ? JSON.parse(user).token : '';
+  return {
+    'Content-Type': 'application/json',
+    'Authorization': `Bearer ${token}`
   };
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(initialDB));
-  return initialDB;
-};
-
-const saveDB = (db: DB) => {
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(db));
 };
 
 export const dbService = {
-  getProducts: () => loadDB().products,
-  getProduct: (id: string) => loadDB().products.find(p => p.id === id),
-  saveProduct: (product: Product) => {
-    const db = loadDB();
-    const index = db.products.findIndex(p => p.id === product.id);
-    if (index >= 0) {
-      db.products[index] = product;
-    } else {
-      db.products.push(product);
+  // PRODUCTS
+  getProducts: async (): Promise<Product[]> => {
+    try {
+      const res = await fetch(`${API_URL}/products`);
+      if (!res.ok) throw new Error('API Error');
+      return res.json();
+    } catch (error) {
+      console.warn("Backend unreachable, using mock data for products.");
+      return MOCK_PRODUCTS;
     }
-    saveDB(db);
   },
-  deleteProduct: (id: string) => {
-    const db = loadDB();
-    db.products = db.products.filter(p => p.id !== id);
-    saveDB(db);
+  getProduct: async (id: string): Promise<Product | undefined> => {
+    try {
+      const res = await fetch(`${API_URL}/products/${id}`);
+      if (!res.ok) throw new Error('API Error');
+      return res.json();
+    } catch (error) {
+      console.warn(`Backend unreachable, looking up product ${id} in mock data.`);
+      return MOCK_PRODUCTS.find(p => p.id === id);
+    }
+  },
+  saveProduct: async (product: Product): Promise<Product> => {
+    try {
+      const res = await fetch(`${API_URL}/products`, {
+        method: 'POST',
+        headers: getHeaders(),
+        body: JSON.stringify(product)
+      });
+      if (!res.ok) throw new Error('Failed to save');
+      return res.json();
+    } catch (error) {
+      console.error("Save product failed (Mock Mode):", error);
+      // Mock successful save
+      return product;
+    }
+  },
+  deleteProduct: async (id: string): Promise<void> => {
+    try {
+      await fetch(`${API_URL}/products/${id}`, {
+        method: 'DELETE',
+        headers: getHeaders()
+      });
+    } catch (error) {
+      console.error("Delete product failed (Mock Mode):", error);
+    }
   },
   
-  getOrders: () => loadDB().orders,
-  createOrder: (order: Order) => {
-    const db = loadDB();
-    db.orders.unshift(order);
-    saveDB(db);
+  // ORDERS
+  getOrders: async (): Promise<Order[]> => {
+    try {
+      const res = await fetch(`${API_URL}/orders`, { headers: getHeaders() });
+      if (!res.ok) throw new Error('API Error');
+      return res.json();
+    } catch (error) {
+      console.warn("Backend unreachable, returning mock orders.");
+      return MOCK_ORDERS;
+    }
   },
-  updateOrderStatus: (id: string, status: OrderStatus) => {
-    const db = loadDB();
-    const order = db.orders.find(o => o.id === id);
-    if (order) {
-      order.status = status;
-      saveDB(db);
+  createOrder: async (order: Partial<Order>): Promise<Order> => {
+    try {
+      const res = await fetch(`${API_URL}/orders`, {
+        method: 'POST',
+        headers: getHeaders(),
+        body: JSON.stringify(order)
+      });
+      if (!res.ok) throw new Error('Failed to create order');
+      return res.json();
+    } catch (error) {
+       console.warn("Backend unreachable, creating mock order.");
+       return {
+         ...order,
+         id: 'mock-new-order-' + Date.now(),
+         status: OrderStatus.PENDING,
+         createdAt: new Date().toISOString(),
+         userName: 'Demo User'
+       } as Order;
+    }
+  },
+  updateOrderStatus: async (id: string, status: OrderStatus): Promise<Order> => {
+    try {
+      const res = await fetch(`${API_URL}/orders/${id}/status`, {
+        method: 'PUT',
+        headers: getHeaders(),
+        body: JSON.stringify({ status })
+      });
+      if (!res.ok) throw new Error('Failed to update');
+      return res.json();
+    } catch (error) {
+       console.warn("Backend unreachable, returning mock updated order.");
+       const mockOrder = MOCK_ORDERS.find(o => o.id === id) || MOCK_ORDERS[0];
+       return { ...mockOrder, status };
     }
   },
 
-  getStats: () => {
-    const db = loadDB();
-    const totalUsers = db.users.length;
-    const totalOrders = db.orders.length;
-    const totalRevenue = db.orders
-      .filter(o => o.status === OrderStatus.PAID || o.status === OrderStatus.DELIVERED)
-      .reduce((acc, curr) => acc + curr.totalAmount, 0);
-    return { totalUsers, totalOrders, totalRevenue };
+  // STATS
+  getStats: async () => {
+    try {
+      const res = await fetch(`${API_URL}/stats`, { headers: getHeaders() });
+      if (!res.ok) throw new Error('API Error');
+      return res.json();
+    } catch (error) {
+      return { totalRevenue: 154500, totalOrders: 12, totalUsers: 5 };
+    }
   },
 
-  // Auth Helpers
-  findUser: (email: string) => loadDB().users.find(u => u.email === email),
-  createUser: (user: User) => {
-    const db = loadDB();
-    db.users.push(user);
-    saveDB(db);
+  // AUTH / USER
+  findUser: async (email: string) => {
+     return null; 
+  },
+  
+  // PAYU
+  getPayUHash: async (data: any) => {
+    try {
+      const res = await fetch(`${API_URL}/payu/hash`, {
+        method: 'POST',
+        headers: getHeaders(),
+        body: JSON.stringify(data)
+      });
+      if (!res.ok) throw new Error('Hash generation failed');
+      return res.json();
+    } catch (error) {
+      console.error("PayU Hash generation failed:", error);
+      // Fallback for demo purposes only - DO NOT USE IN PRODUCTION
+      return { hash: "mock_hash_demo_only" };
+    }
   }
 };

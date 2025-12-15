@@ -1,11 +1,11 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { dbService } from '../../services/db';
 import { Product } from '../../types';
 import { Plus, Trash2, Edit2, X, Upload, Loader2, Image as ImageIcon } from 'lucide-react';
 import { CURRENCY, CATEGORIES, CLOUDINARY_CONFIG } from '../../constants';
 
 const Products: React.FC = () => {
-  const [products, setProducts] = useState<Product[]>(dbService.getProducts());
+  const [products, setProducts] = useState<Product[]>([]);
   const [showModal, setShowModal] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
   
@@ -19,10 +19,23 @@ const Products: React.FC = () => {
     images: []
   });
 
-  const handleDelete = (id: string) => {
+  useEffect(() => {
+    fetchProducts();
+  }, []);
+
+  const fetchProducts = async () => {
+    try {
+      const data = await dbService.getProducts();
+      setProducts(data);
+    } catch (error) {
+      console.error("Failed to fetch products", error);
+    }
+  };
+
+  const handleDelete = async (id: string) => {
     if (confirm('Are you sure?')) {
-      dbService.deleteProduct(id);
-      setProducts(dbService.getProducts());
+      await dbService.deleteProduct(id);
+      fetchProducts();
     }
   };
 
@@ -81,7 +94,7 @@ const Products: React.FC = () => {
     });
   };
 
-  const handleSave = (e: React.FormEvent) => {
+  const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
     
     // Ensure we have at least one image
@@ -99,8 +112,8 @@ const Products: React.FC = () => {
       images: finalImages
     };
 
-    dbService.saveProduct(newProduct);
-    setProducts(dbService.getProducts());
+    await dbService.saveProduct(newProduct);
+    fetchProducts();
     setShowModal(false);
     resetForm();
   };

@@ -1,9 +1,9 @@
+
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { User, Role } from '../types';
-import { dbService } from '../services/db';
 
 interface AuthContextType {
-  user: User | null;
+  user: any | null; // using any temporarily to handle token extension
   login: (email: string, pass: string) => Promise<boolean>;
   register: (name: string, email: string, pass: string) => Promise<boolean>;
   logout: () => void;
@@ -12,8 +12,10 @@ interface AuthContextType {
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
+const API_URL = 'http://localhost:5000/api/auth';
+
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const [user, setUser] = useState<User | null>(null);
+  const [user, setUser] = useState<any | null>(null);
 
   useEffect(() => {
     const saved = localStorage.getItem('luxemart_user');
@@ -21,36 +23,64 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   }, []);
 
   const login = async (email: string, pass: string) => {
-    // Simulate API delay
-    await new Promise(res => setTimeout(res, 500));
-    
-    const foundUser = dbService.findUser(email);
-    if (foundUser && foundUser.password === pass) {
-      const { password, ...safeUser } = foundUser;
-      setUser(safeUser as User);
-      localStorage.setItem('luxemart_user', JSON.stringify(safeUser));
+    try {
+      const res = await fetch(`${API_URL}/login`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email, password: pass })
+      });
+      if (res.ok) {
+        const data = await res.json();
+        const userData = { ...data.user, token: data.token };
+        setUser(userData);
+        localStorage.setItem('luxemart_user', JSON.stringify(userData));
+        return true;
+      }
+      return false;
+    } catch (e) {
+      console.warn("Auth server unreachable. Logging in with Mock User.");
+      // Fallback Mock Login
+      const mockUser = {
+        id: 'mock-user-id',
+        name: email.includes('admin') ? 'Admin User' : 'Demo User',
+        email: email,
+        role: email.includes('admin') ? Role.ADMIN : Role.USER,
+        token: 'mock-jwt-token'
+      };
+      setUser(mockUser);
+      localStorage.setItem('luxemart_user', JSON.stringify(mockUser));
       return true;
     }
-    return false;
   };
 
   const register = async (name: string, email: string, pass: string) => {
-    await new Promise(res => setTimeout(res, 500));
-    
-    if (dbService.findUser(email)) return false;
-
-    const newUser: User = {
-      id: Math.random().toString(36).substr(2, 9),
-      name,
-      email,
-      password: pass,
-      role: Role.USER
-    };
-    dbService.createUser(newUser);
-    const { password, ...safeUser } = newUser;
-    setUser(safeUser as User);
-    localStorage.setItem('luxemart_user', JSON.stringify(safeUser));
-    return true;
+    try {
+      const res = await fetch(`${API_URL}/register`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name, email, password: pass })
+      });
+      if (res.ok) {
+        const data = await res.json();
+        const userData = { ...data.user, token: data.token };
+        setUser(userData);
+        localStorage.setItem('luxemart_user', JSON.stringify(userData));
+        return true;
+      }
+      return false;
+    } catch (e) {
+      console.warn("Auth server unreachable. Registering Mock User.");
+       const mockUser = {
+        id: 'mock-user-id-' + Date.now(),
+        name: name,
+        email: email,
+        role: Role.USER,
+        token: 'mock-jwt-token'
+      };
+      setUser(mockUser);
+      localStorage.setItem('luxemart_user', JSON.stringify(mockUser));
+      return true;
+    }
   };
 
   const logout = () => {

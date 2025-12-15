@@ -1,14 +1,31 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { dbService } from '../../services/db';
 import { Order, OrderStatus } from '../../types';
 import { CURRENCY } from '../../constants';
+import { Loader2 } from 'lucide-react';
 
 const Orders: React.FC = () => {
-  const [orders, setOrders] = useState<Order[]>(dbService.getOrders());
+  const [orders, setOrders] = useState<Order[]>([]);
+  const [loading, setLoading] = useState(true);
 
-  const handleStatusChange = (id: string, status: OrderStatus) => {
-    dbService.updateOrderStatus(id, status);
-    setOrders(dbService.getOrders());
+  useEffect(() => {
+    fetchOrders();
+  }, []);
+
+  const fetchOrders = async () => {
+    try {
+      const data = await dbService.getOrders();
+      setOrders(data);
+    } catch (error) {
+      console.error("Failed to fetch orders", error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleStatusChange = async (id: string, status: OrderStatus) => {
+    await dbService.updateOrderStatus(id, status);
+    fetchOrders();
   };
 
   const getStatusColor = (status: OrderStatus) => {
@@ -20,6 +37,14 @@ const Orders: React.FC = () => {
       default: return 'bg-red-100 text-red-800';
     }
   };
+
+  if (loading) {
+    return (
+      <div className="flex justify-center items-center h-64">
+        <Loader2 className="h-8 w-8 animate-spin text-indigo-600" />
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">

@@ -35,9 +35,13 @@ export const Layout: React.FC = () => {
               
               {user ? (
                 <>
-                  {isAdmin && (
+                  {isAdmin ? (
                     <Link to="/admin" className="text-indigo-600 font-bold hover:text-indigo-800 px-3 py-2 text-sm">
                       Admin Panel
+                    </Link>
+                  ) : (
+                    <Link to="/orders" className="text-gray-500 hover:text-indigo-600 px-3 py-2 rounded-md text-sm font-medium">
+                      My Orders
                     </Link>
                   )}
                   <span className="text-gray-900 text-sm font-medium flex items-center gap-2">
@@ -78,7 +82,11 @@ export const Layout: React.FC = () => {
               <Link to="/cart" onClick={() => setMobileMenuOpen(false)} className="block pl-3 pr-4 py-2 border-l-4 border-transparent text-base font-medium text-gray-600 hover:text-gray-800 hover:bg-gray-50 hover:border-gray-300">Cart ({itemCount})</Link>
               {user ? (
                 <>
-                   {isAdmin && <Link to="/admin" className="block pl-3 pr-4 py-2 text-indigo-600 font-bold">Admin Panel</Link>}
+                   {isAdmin ? (
+                     <Link to="/admin" className="block pl-3 pr-4 py-2 text-indigo-600 font-bold">Admin Panel</Link>
+                   ) : (
+                     <Link to="/orders" className="block pl-3 pr-4 py-2 text-base font-medium text-gray-600 hover:text-gray-800">My Orders</Link>
+                   )}
                    <button onClick={handleLogout} className="block w-full text-left pl-3 pr-4 py-2 text-red-600">Logout</button>
                 </>
               ) : (

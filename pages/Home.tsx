@@ -1,16 +1,32 @@
-import React, { useState } from 'react';
+
+import React, { useState, useEffect } from 'react';
 import { dbService } from '../services/db';
-import { Product, CartItem } from '../types';
+import { Product } from '../types';
 import { useCart } from '../context/CartContext';
 import { CURRENCY, CATEGORIES } from '../constants';
-import { Plus, Check, Search } from 'lucide-react';
+import { Plus, Check, Search, Loader2 } from 'lucide-react';
 import { Link } from 'react-router-dom';
 
 const Home: React.FC = () => {
-  const [products] = useState<Product[]>(dbService.getProducts());
+  const [products, setProducts] = useState<Product[]>([]);
+  const [loading, setLoading] = useState(true);
   const [category, setCategory] = useState<string>('All');
   const [searchQuery, setSearchQuery] = useState('');
   const { addToCart, items } = useCart();
+
+  useEffect(() => {
+    const loadProducts = async () => {
+      try {
+        const data = await dbService.getProducts();
+        setProducts(data);
+      } catch (error) {
+        console.error("Failed to load products", error);
+      } finally {
+        setLoading(false);
+      }
+    };
+    loadProducts();
+  }, []);
 
   const filteredProducts = products.filter(p => {
     const matchesCategory = category === 'All' || p.category === category;
@@ -20,6 +36,14 @@ const Home: React.FC = () => {
   });
 
   const isInCart = (id: string) => items.some(item => item.id === id);
+
+  if (loading) {
+    return (
+      <div className="flex justify-center items-center h-64">
+        <Loader2 className="h-8 w-8 animate-spin text-indigo-600" />
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-8">

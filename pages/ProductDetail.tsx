@@ -1,15 +1,40 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { dbService } from '../services/db';
 import { useCart } from '../context/CartContext';
 import { CURRENCY } from '../constants';
-import { ShoppingBag, ArrowLeft } from 'lucide-react';
+import { ShoppingBag, ArrowLeft, Loader2 } from 'lucide-react';
+import { Product } from '../types';
 
 const ProductDetail: React.FC = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const { addToCart } = useCart();
-  const product = id ? dbService.getProduct(id) : null;
+  const [product, setProduct] = useState<Product | undefined>(undefined);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const loadProduct = async () => {
+      if (id) {
+        try {
+          const data = await dbService.getProduct(id);
+          setProduct(data);
+        } catch (error) {
+          console.error("Failed to load product", error);
+        }
+      }
+      setLoading(false);
+    };
+    loadProduct();
+  }, [id]);
+
+  if (loading) {
+    return (
+      <div className="flex justify-center items-center h-64">
+        <Loader2 className="h-8 w-8 animate-spin text-indigo-600" />
+      </div>
+    );
+  }
 
   if (!product) {
     return <div className="text-center py-20">Product not found</div>;

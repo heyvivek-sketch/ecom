@@ -1,10 +1,33 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { dbService } from '../../services/db';
 import { CURRENCY } from '../../constants';
-import { Users, ShoppingBag, DollarSign } from 'lucide-react';
+import { Users, ShoppingBag, DollarSign, Loader2 } from 'lucide-react';
 
 const Dashboard: React.FC = () => {
-  const stats = dbService.getStats();
+  const [stats, setStats] = useState<any>({ totalRevenue: 0, totalOrders: 0, totalUsers: 0 });
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const loadStats = async () => {
+      try {
+        const data = await dbService.getStats();
+        setStats(data);
+      } catch (error) {
+        console.error("Failed to load stats", error);
+      } finally {
+        setLoading(false);
+      }
+    };
+    loadStats();
+  }, []);
+
+  if (loading) {
+    return (
+      <div className="flex justify-center items-center h-64">
+        <Loader2 className="h-8 w-8 animate-spin text-indigo-600" />
+      </div>
+    );
+  }
 
   const StatCard = ({ title, value, icon, color }: any) => (
     <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-100 flex items-center justify-between">

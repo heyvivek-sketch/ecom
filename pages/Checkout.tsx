@@ -1,19 +1,22 @@
-import React, { useState } from 'react';
+
+import React, { useState, useRef } from 'react';
 import { useCart } from '../context/CartContext';
 import { useAuth } from '../context/AuthContext';
 import { CURRENCY, PAYU_TEST_CONFIG } from '../constants';
 import { dbService } from '../services/db';
 import { Order, OrderStatus } from '../types';
 import { useNavigate } from 'react-router-dom';
-import { CreditCard, Lock } from 'lucide-react';
+import { CreditCard, Lock, Loader2 } from 'lucide-react';
 
 const Checkout: React.FC = () => {
   const { items, cartTotal, clearCart } = useCart();
   const { user } = useAuth();
   const navigate = useNavigate();
+  const formRef = useRef<HTMLFormElement>(null);
   
   const [address, setAddress] = useState({ street: '', city: '', zip: '', phone: '' });
   const [processing, setProcessing] = useState(false);
+  const [hash, setHash] = useState('');
 
   // Redirect to login if not authenticated
   React.useEffect(() => {
@@ -29,32 +32,39 @@ const Checkout: React.FC = () => {
     e.preventDefault();
     setProcessing(true);
 
-    // 1. Create Pending Order in DB
-    const order: Order = {
-      id: txnid,
-      userId: user.id,
-      userName: user.name,
-      items: items,
-      totalAmount: totalAmount,
-      status: OrderStatus.PENDING,
-      txnId: txnid,
-      createdAt: new Date().toISOString(),
-      shippingAddress: `${address.street}, ${address.city} - ${address.zip}, Phone: ${address.phone}`
-    };
-    dbService.createOrder(order);
+    try {
+        // 1. Create Pending Order in DB via API
+        const orderData = {
+          items: items,
+          totalAmount: totalAmount,
+          shippingAddress: `${address.street}, ${address.city} - ${address.zip}, Phone: ${address.phone}`,
+          txnId: txnid
+        };
+        await dbService.createOrder(orderData as any);
 
-    // 2. Simulate Backend Hash Generation (See services/payu.ts for real logic)
-    // In a real app, you would fetch the hash from your backend here.
-    // const response = await fetch('/api/payu/hash', { ... });
-    // const { hash } = await response.json();
-    
-    // 3. Simulate PayU Redirection (Since we are client-side only)
-    setTimeout(() => {
-      // Simulate Payment Success
-      dbService.updateOrderStatus(txnid, OrderStatus.PAID);
-      clearCart();
-      navigate(`/order-success?txnid=${txnid}&amount=${totalAmount}`);
-    }, 2000);
+        // 2. Fetch Hash from Backend
+        const hashData = await dbService.getPayUHash({
+            txnid,
+            amount: totalAmount,
+            productinfo: 'LuxeMart Order',
+            firstname: user.name,
+            email: user.email
+        });
+        
+        setHash(hashData.hash);
+
+        // 3. Submit Form to PayU
+        setTimeout(() => {
+            if (formRef.current) {
+                formRef.current.submit();
+            }
+        }, 1000);
+
+    } catch (error) {
+        console.error("Checkout failed", error);
+        alert("Something went wrong. Please try again.");
+        setProcessing(false);
+    }
   };
 
   return (
@@ -145,7 +155,9 @@ const Checkout: React.FC = () => {
           className="w-full bg-green-600 text-white p-4 rounded-xl font-bold text-lg hover:bg-green-700 transition-colors shadow-lg disabled:opacity-50 flex items-center justify-center gap-2"
         >
           {processing ? (
-            <span className="animate-pulse">Processing Payment...</span>
+            <span className="flex items-center gap-2">
+                <Loader2 className="h-5 w-5 animate-spin" /> Redirecting to PayU...
+            </span>
           ) : (
             <>
               <Lock className="h-5 w-5" />
@@ -158,11 +170,13 @@ const Checkout: React.FC = () => {
           Encrypted by PayU Payments India
         </p>
 
-        {/* 
-            HIDDEN FORM FOR REAL PAYU INTEGRATION 
-            In a real app, this form is submitted programmatically after receiving Hash from backend.
-        */}
-        <form action={PAYU_TEST_CONFIG.actionUrl} method="post" id="payu_form" className="hidden">
+        {/* REAL PAYU FORM */}
+        <form 
+            ref={formRef} 
+            action={PAYU_TEST_CONFIG.actionUrl} 
+            method="post" 
+            className="hidden"
+        >
            <input type="hidden" name="key" value={PAYU_TEST_CONFIG.key} />
            <input type="hidden" name="txnid" value={txnid} />
            <input type="hidden" name="amount" value={totalAmount} />
@@ -170,9 +184,10 @@ const Checkout: React.FC = () => {
            <input type="hidden" name="firstname" value={user.name} />
            <input type="hidden" name="email" value={user.email} />
            <input type="hidden" name="phone" value={address.phone} />
-           <input type="hidden" name="surl" value={`${window.location.origin}/#/order-success`} />
-           <input type="hidden" name="furl" value={`${window.location.origin}/#/order-failure`} />
-           <input type="hidden" name="hash" value="HASH_FROM_BACKEND" />
+           {/* In real app, these point to backend endpoints that redirect */}
+           <input type="hidden" name="surl" value="http://localhost:5000/api/payu/webhook" />
+           <input type="hidden" name="furl" value="http://localhost:5000/api/payu/webhook" />
+           <input type="hidden" name="hash" value={hash} />
         </form>
       </div>
     </div>

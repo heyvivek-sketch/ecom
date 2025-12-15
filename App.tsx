@@ -12,6 +12,7 @@ import Cart from './pages/Cart';
 import Checkout from './pages/Checkout';
 import Login from './pages/Login';
 import OrderSuccess from './pages/OrderSuccess';
+import MyOrders from './pages/MyOrders';
 
 // Admin Pages
 import Dashboard from './pages/admin/Dashboard';
@@ -32,6 +33,7 @@ const App: React.FC = () => {
               <Route path="checkout" element={<Checkout />} />
               <Route path="login" element={<Login />} />
               <Route path="order-success" element={<OrderSuccess />} />
+              <Route path="orders" element={<MyOrders />} />
             </Route>
 
             {/* Admin Routes */}
